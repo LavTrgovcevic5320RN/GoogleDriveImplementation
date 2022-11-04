@@ -6,6 +6,7 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
@@ -18,16 +19,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
-/* class to demonstarte use of Drive files list API */
+import exceptions.InvalidConstraintException;
+import storage.*;
 
-public class GoogleDriveImplementation  {
+public class GoogleDriveImplementation extends Storage{
     /**
      * Application name.
      */
-    private static final String APPLICATION_NAME = "Google Drive API Java Quickstart";
+    private static final String APPLICATION_NAME = "Google Drive Implementation";
     /**
      * Global instance of the JSON factory.
      */
@@ -36,28 +37,23 @@ public class GoogleDriveImplementation  {
      * Directory to store authorization tokens for this application.
      */
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
-
     /**
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final List<String> SCOPES =
-            Collections.singletonList(DriveScopes.DRIVE_METADATA_READONLY);
+    private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-
-    /**
-     * Creates an authorized Credential object.
+    /** Creates an authorized Credential object.
      *
      * @param HTTP_TRANSPORT The network HTTP Transport.
      * @return An authorized Credential object.
      * @throws IOException If the credentials.json file cannot be found.
      */
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT)
-            throws IOException {
+    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
-        InputStream in = GoogleDriveImplementation.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
+        InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
         if (in == null) {
-            throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
+            throw new FileNotFoundException("Resource not found: " + "/client_secret.json");
         }
         GoogleClientSecrets clientSecrets =
                 GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
@@ -96,4 +92,160 @@ public class GoogleDriveImplementation  {
             }
         }
     }
+
+    @Override
+    public void initialiseDirectory(String path, String storageName, int size, int maxFiles, String... bannedExtensions) {
+        File file = new File();
+        file.setName(storageName);
+        file.setMimeType("application/vnd.google-apps.folder");
+        file.setParents(Collections.singletonList(path));
+
+        //napraviti check if exists metodu i proveriti ovde
+
+        storageConstraint = new StorageConstraint();
+        if (size >= 0)
+            storageConstraint.setByteSizeQuota(size);
+
+        storageConstraint.getMaxNumberOfFiles().put("#", maxFiles >= 0 ? maxFiles : -1);
+
+        if (bannedExtensions.length > 0) {
+            for(int i = 0 ; i < bannedExtensions.length; i++)
+                bannedExtensions[i] = bannedExtensions[i].toLowerCase();
+            storageConstraint.getIllegalExtensions().addAll(Arrays.asList(bannedExtensions));
+            System.out.println(storageConstraint.getIllegalExtensions());
+        }
+
+        final NetHttpTransport HTTP_TRANSPORT;
+        try {
+            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+            Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                                .setApplicationName(APPLICATION_NAME)
+                                .build();
+            file = service.files().create(file)
+                    .setFields("id, parents")
+                    .execute()
+                    .setQuotaBytesUsed(Long.parseLong(size + ""));
+            System.out.println("New Root ID: " + file.getId());
+
+        } catch (GeneralSecurityException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Override
+    public void openDirectory(String s) {
+
+    }
+
+    @Override
+    public void create(String s, String s1) {
+
+    }
+
+    @Override
+    public void create(String s, String s1, int i) {
+
+    }
+
+    @Override
+    public void setMaxFiles(String s, int i) {
+
+    }
+
+    @Override
+    public void createExpanded(String s, String s1) {
+
+    }
+
+    @Override
+    public void uploadFiles(String s, String... strings) throws InvalidConstraintException {
+
+    }
+
+    @Override
+    public void delete(String s) {
+
+    }
+
+    @Override
+    public void moveFiles(String s, String... strings) throws InvalidConstraintException, FileNotFoundException {
+
+    }
+
+    @Override
+    public void download(String s, String... strings) {
+
+    }
+
+    @Override
+    public void rename(String s, String s1) {
+
+    }
+
+    @Override
+    public long getStorageByteSize() {
+        return 0;
+    }
+
+    @Override
+    public void setSizeQuota(long l) {
+
+    }
+
+    @Override
+    public Collection<FileMetaData> searchFilesInDirectory(String s) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchFilesInAllDirectories(String s) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchFilesInDirectoryAndBelow(String s) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchFilesWithExtension(String s, String s1) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchFilesThatContain(String s, String s1) {
+        return null;
+    }
+
+    @Override
+    public boolean searchIfFilesExist(String s, String... strings) {
+        return false;
+    }
+
+    @Override
+    public Collection<String> searchFile(String s) {
+        return null;
+    }
+
+    @Override
+    public Date getCreationDate(String s) {
+        return null;
+    }
+
+    @Override
+    public Date getModificationDate(String s) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchByNameSorted(String s, Boolean aBoolean) {
+        return null;
+    }
+
+    @Override
+    public Collection<FileMetaData> searchByDirectoryDateRange(Date date, Date date1, DateType dateType, String s) {
+        return null;
+    }
+
 }
