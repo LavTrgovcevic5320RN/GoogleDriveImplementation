@@ -112,7 +112,7 @@ public class GoogleDriveImplementation extends Storage{
             for(int i = 0 ; i < bannedExtensions.length; i++)
                 bannedExtensions[i] = bannedExtensions[i].toLowerCase();
             storageConstraint.getIllegalExtensions().addAll(Arrays.asList(bannedExtensions));
-            System.out.println(storageConstraint.getIllegalExtensions());
+//            System.out.println(storageConstraint.getIllegalExtensions());
         }
 
         final NetHttpTransport HTTP_TRANSPORT;
