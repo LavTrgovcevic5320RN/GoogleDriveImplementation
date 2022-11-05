@@ -70,68 +70,75 @@ public class GoogleDriveImplementation extends Storage{
         return credential;
     }
 
-    public static void main(String... args) throws IOException, GeneralSecurityException {
-        // Build a new authorized API client service.
-        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                .setApplicationName(APPLICATION_NAME)
-                .build();
+//    public static void main(String... args) throws IOException, GeneralSecurityException {
+//        // Build a new authorized API client service.
+//        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+//        Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+//                .setApplicationName(APPLICATION_NAME)
+//                .build();
+//
+//        // Print the names and IDs for up to 10 files.
+//        FileList result = service.files().list()
+//                .setPageSize(10)
+//                .setFields("nextPageToken, files(id, name)")
+//                .execute();
+//        List<File> files = result.getFiles();
+//        if (files == null || files.isEmpty()) {
+//            System.out.println("No files found.");
+//        } else {
+//            System.out.println("Files:");
+//            for (File file : files) {
+//                System.out.printf("%s (%s)\n", file.getName(), file.getId());
+//            }
+//        }
+//        GoogleDriveImplementation g = new GoogleDriveImplementation();
+//        g.initialiseDirectory("SK", "C:\\Users\\Lav\\Desktop\\Adasdasd", 2048, 5,  "exe");
+//
+//    }
 
-        // Print the names and IDs for up to 10 files.
-        FileList result = service.files().list()
-                .setPageSize(10)
-                .setFields("nextPageToken, files(id, name)")
-                .execute();
-        List<File> files = result.getFiles();
-        if (files == null || files.isEmpty()) {
-            System.out.println("No files found.");
-        } else {
-            System.out.println("Files:");
-            for (File file : files) {
-                System.out.printf("%s (%s)\n", file.getName(), file.getId());
-            }
-        }
+    public static void main(String[] args) {
+        GoogleDriveImplementation g = new GoogleDriveImplementation();
+        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
     }
+
 
     @Override
     public void initialiseDirectory(String path, String storageName, int size, int maxFiles, String... bannedExtensions) {
         File file = new File();
         file.setName(storageName);
         file.setMimeType("application/vnd.google-apps.folder");
-        file.setParents(Collections.singletonList(path));
 
         //napraviti check if exists metodu i proveriti ovde
 
         storageConstraint = new StorageConstraint();
         if (size >= 0)
             storageConstraint.setByteSizeQuota(size);
-
         storageConstraint.getMaxNumberOfFiles().put("#", maxFiles >= 0 ? maxFiles : -1);
 
         if (bannedExtensions.length > 0) {
             for(int i = 0 ; i < bannedExtensions.length; i++)
                 bannedExtensions[i] = bannedExtensions[i].toLowerCase();
             storageConstraint.getIllegalExtensions().addAll(Arrays.asList(bannedExtensions));
-//            System.out.println(storageConstraint.getIllegalExtensions());
         }
 
         final NetHttpTransport HTTP_TRANSPORT;
         try {
             HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                                .setApplicationName(APPLICATION_NAME)
-                                .build();
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
             file = service.files().create(file)
-                    .setFields("id, parents")
+                    .setFields("id,parents")
                     .execute()
-                    .setQuotaBytesUsed(Long.parseLong(size + ""));
+                    .setQuotaBytesUsed(Long.parseLong(storageConstraint.getByteSizeQuota() + ""));
             System.out.println("New Root ID: " + file.getId());
 
-        } catch (GeneralSecurityException | IOException e) {
+        }catch (IOException e) {
+            e.printStackTrace();
+        } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
     }
-
 
     @Override
     public void openDirectory(String s) {
