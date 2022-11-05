@@ -96,9 +96,40 @@ public class GoogleDriveImplementation extends Storage{
 //
 //    }
 
-    public static void main(String[] args) {
+    private static HttpTransport HTTP_TRANSPORT;
+    static {
+        try {
+            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    public static Credential authorize() throws IOException {
+        // Load client secrets.
+        InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+
+        // Build flow and trigger user authorization request.
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY,
+                clientSecrets, SCOPES).setAccessType("offline").build();
+        Credential credential = new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
+        return credential;
+    }
+
+    public static Drive getDriveService() throws IOException {
+        Credential credential = authorize();
+        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+                .setApplicationName(APPLICATION_NAME)
+                .build();
+    }
+
+    public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
-        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
+//        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
+        g.delete("marko polo"); // primer za folder
+        g.delete("1"); // primer za file
     }
 
 
@@ -121,13 +152,8 @@ public class GoogleDriveImplementation extends Storage{
             storageConstraint.getIllegalExtensions().addAll(Arrays.asList(bannedExtensions));
         }
 
-        final NetHttpTransport HTTP_TRANSPORT;
         try {
-            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-            Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
-            file = service.files().create(file)
+            file =  GoogleDriveImplementation.getDriveService().files().create(file)
                     .setFields("id,parents")
                     .execute()
                     .setQuotaBytesUsed(Long.parseLong(storageConstraint.getByteSizeQuota() + ""));
@@ -135,8 +161,6 @@ public class GoogleDriveImplementation extends Storage{
 
         }catch (IOException e) {
             e.printStackTrace();
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -171,8 +195,26 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public void delete(String s) {
+    public void delete(String name) {
+        try {
+            FileList result = getDriveService().files().list()
+                    .setPageSize(10)
+                    .setFields("files(id, name)")
+                    .execute();
 
+            List<File> files = result.getFiles();
+            if (files == null || files.isEmpty())
+                System.out.println("No files found.");
+            else
+                for (File file : files)
+                    if(file.getName().equals(name)) {
+                        getDriveService().files().delete(file.getId()).execute();
+                        System.out.println("Folder deleted.");
+                    }
+            System.out.println("Folder doesn't exist 1.");
+        } catch (IOException e) {
+            System.out.println("Folder doesn't exist 2.");
+        }
     }
 
     @Override
