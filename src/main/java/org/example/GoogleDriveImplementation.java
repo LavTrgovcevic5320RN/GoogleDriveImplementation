@@ -128,8 +128,8 @@ public class GoogleDriveImplementation extends Storage{
     public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
 //        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
-        g.delete("marko polo"); // primer za folder
-        g.delete("1"); // primer za file
+//        g.delete("B"); // primer za folder unutar folder-a A npr. A/B
+//        g.delete("1"); // primer za file
     }
 
 
