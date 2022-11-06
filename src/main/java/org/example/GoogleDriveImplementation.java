@@ -6,6 +6,7 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -14,11 +15,8 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.security.GeneralSecurityException;
+
+import java.io.*;
 import java.util.*;
 
 import exceptions.InvalidConstraintException;
@@ -130,8 +128,10 @@ public class GoogleDriveImplementation extends Storage{
 //        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
 //        g.delete("B"); // primer za folder unutar folder-a npr. A/B
 //        g.delete("1"); // primer za file
-    }
 
+        //g.download("C:/Users/Lav/Desktop/Adasdasd", "SK-prvi projekat2022.pdf");
+        g.rename("1.pdf","SK-prvi projekat2022.pdf");
+    }
 
     @Override
     public void initialiseDirectory(String path, String storageName, int size, int maxFiles, String... bannedExtensions) {
@@ -158,7 +158,6 @@ public class GoogleDriveImplementation extends Storage{
                     .execute()
                     .setQuotaBytesUsed(Long.parseLong(storageConstraint.getByteSizeQuota() + ""));
             System.out.println("New Root ID: " + file.getId());
-
         }catch (IOException e) {
             e.printStackTrace();
         }
@@ -194,11 +193,10 @@ public class GoogleDriveImplementation extends Storage{
 
     }
 
-    @Override
-    public void delete(String name) {
+    public String findIDbyFileName(String fileName){
+        String fileID = null;
         try {
             FileList result = getDriveService().files().list()
-                    .setPageSize(10)
                     .setFields("files(id, name)")
                     .execute();
 
@@ -207,13 +205,25 @@ public class GoogleDriveImplementation extends Storage{
                 System.out.println("No files found.");
             else
                 for (File file : files)
-                    if(file.getName().equals(name)) {
-                        getDriveService().files().delete(file.getId()).execute();
-                        System.out.println("Folder deleted.");
+                    if(file.getName().equals(fileName)) {
+                        fileID = file.getId();
                     }
             System.out.println("Folder doesn't exist 1.");
         } catch (IOException e) {
             System.out.println("Folder doesn't exist 2.");
+        }
+
+        return fileID;
+    }
+
+    @Override
+    public void delete(String name) {
+        String fileId = findIDbyFileName(name);
+        try {
+            getDriveService().files().delete(fileId).execute();
+            System.out.println("Folder deleted.");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -223,12 +233,43 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public void download(String s, String... strings) {
-
+    public void download(String destination, String... files) {
+//        OutputStream outputStream = new ByteArrayOutputStream();
+//        for(String fileName : files){
+//            try {
+//                String fileId = findIDbyFileName(fileName);
+//                GoogleDriveImplementation.getDriveService().files().get(fileId).executeMediaAndDownloadTo(outputStream);
+//                java.io.File f = new java.io.File(destination + "/" + fileName);
+//                FileWriter fw = new FileWriter(f.getAbsolutePath());
+//                fw.write(String.valueOf(outputStream));
+//                fw.close();
+//                outputStream.close();
+//                System.out.println("File " + fileName + " successfully downloaded");
+//            } catch (IOException e) {
+//                System.out.println("File " + fileName + " didnt download");
+//                e.printStackTrace();
+//            }
+//        }
     }
 
     @Override
-    public void rename(String s, String s1) {
+    public void rename(String newName, String oldName) {
+//        String fileId = findIDbyFileName(oldName);
+//        try {
+//            File file = getDriveService().files().get(fileId).execute();
+//
+//            file.setName(newName);
+//            file.setDescription(file.getDescription());
+//            file.setMimeType(file.getMimeType());
+//
+//            java.io.File fileContent = new java.io.File(newName);
+//            FileContent mediaContent = new FileContent(file.getMimeType(), fileContent);
+//
+//            File updatedFile = getDriveService().files().update(fileId, file, mediaContent).execute();
+//            System.out.println("Renamed.");
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 
     }
 
