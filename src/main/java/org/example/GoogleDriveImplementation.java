@@ -6,10 +6,9 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
@@ -43,26 +42,6 @@ public class GoogleDriveImplementation extends Storage{
             t.printStackTrace();
             System.exit(1);
         }
-    }
-
-    private  Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
-        // Load client secrets.
-        InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
-        if (in == null) {
-            throw new FileNotFoundException("Resource not found: " + "/client_secret.json");
-        }
-        GoogleClientSecrets clientSecrets =
-                GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-
-        // Build flow and trigger user authorization request.
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
-                .build();
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        //returns an authorized Credential object.
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
     public Credential authorize() throws IOException {
@@ -167,9 +146,9 @@ public class GoogleDriveImplementation extends Storage{
     public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
         List<File> v = g.getMyFiles();
-        g.printFiles(v);
-        System.out.println();
-        g.printFiles(g.getFilesInFolder(g.findRoot()));
+//        g.printFiles(v);
+//        System.out.println();
+//        g.printFiles(g.getFilesInFolder(g.findRoot()));
         // System.out.println(g.getMyFiles());
         // g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
 //        g.delete("B"); // primer za folder unutar folder-a npr. A/B
@@ -177,6 +156,9 @@ public class GoogleDriveImplementation extends Storage{
 
         //g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
 //        g.rename("1.pdf","SK-prvi projekat2022.pdf");
+//        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/1.txt");
+//        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/2.xlsx");
+        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/3.jpg");
     }
 
     private void printFiles(List<File> list) {
@@ -241,8 +223,23 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public void uploadFiles(String s, String... strings) throws InvalidConstraintException {
+    public void uploadFiles(String destination, String... files) throws InvalidConstraintException {
+        for(String file: files){
+            File fileMetadata = new File();
+            java.io.File filePath = new java.io.File(file);
+            fileMetadata.setName(filePath.getName());
+            fileMetadata.setMimeType("application/vnd.google-apps.unknown");
 
+            FileContent mediaContent = new FileContent("application/pdf", filePath);
+
+            try {
+                File realFile = driveService.files().create(fileMetadata, mediaContent)
+                        .setFields("id")
+                        .execute();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
@@ -254,11 +251,6 @@ public class GoogleDriveImplementation extends Storage{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public void moveFiles(String s, String... strings) throws InvalidConstraintException, FileNotFoundException {
-
     }
 
     @Override
@@ -276,6 +268,11 @@ public class GoogleDriveImplementation extends Storage{
                 e.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public void moveFiles(String s, String... strings) throws InvalidConstraintException, FileNotFoundException {
+
     }
 
     @Override
