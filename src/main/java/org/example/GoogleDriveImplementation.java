@@ -61,9 +61,8 @@ public class GoogleDriveImplementation extends Storage{
                 .setAccessType("offline")
                 .build();
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-        Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
         //returns an authorized Credential object.
-        return credential;
+        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
 
     public Credential authorize() throws IOException {
@@ -74,8 +73,7 @@ public class GoogleDriveImplementation extends Storage{
         // Build flow and trigger user authorization request.
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY,
                 clientSecrets, SCOPES).setAccessType("offline").build();
-        Credential credential = new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
-        return credential;
+        return new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver()).authorize("user");
     }
 
     public String findIDbyFileName(String fileName){
@@ -127,17 +125,16 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     public List<File> getFilesInFolder(String fid) {
-        FileList list = null;
+        FileList list;
         List<File> fileList = new ArrayList<>();
         String more = null;
         try {
-            while(true) {
+            do {
                 list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000).setQ(String.format("'%s' in parents", fid))
                         .setFields("*").execute().setNextPageToken(more)));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
-                if(more == null) break;
-            }
+            } while (more != null);
             return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
         } catch (IOException ioException) {
             ioException.printStackTrace();
@@ -146,17 +143,16 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     public List<File> getMyFiles() {
-        FileList list = null;
+        FileList list;
         List<File> fileList = new ArrayList<>();
         String more = null;
         try {
-            while(true) {
+            do {
                 list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000)
                         .setFields("*").execute().setNextPageToken(more)));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
-                if(more == null) break;
-            }
+            } while (more != null);
             return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
         } catch (IOException ioException) {
             ioException.printStackTrace();
