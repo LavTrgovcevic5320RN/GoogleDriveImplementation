@@ -101,14 +101,92 @@ public class GoogleDriveImplementation extends Storage{
         return fileID;
     }
 
+    public String findRoot() {
+        List<File> v = getMyFiles();
+        return findRootRec(v, null, null);
+    }
+
+    private String findRootRec(List<File> all, String currentHighest, HashSet<String> parents) {
+        File r = all.get(all.size() / 2);
+        if(currentHighest == null || parents == null) {
+            currentHighest = r.getParents().get(0);
+            parents = new HashSet<>();
+            for(File f : all) parents.addAll(f.getParents());
+        }
+
+        boolean changed = false;
+        for(File f : all) if(f.getId().equals(currentHighest)) {
+            if(f.getParents().get(0) != null) {
+                currentHighest = f.getParents().get(0);
+                changed = true;
+                break;
+            }
+        }
+        if(changed) return findRootRec(all, currentHighest, parents);
+        else return currentHighest;
+    }
+
+    public List<File> getFilesInFolder(String fid) {
+        FileList list = null;
+        List<File> fileList = new ArrayList<>();
+        String more = null;
+        try {
+            while(true) {
+                list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000).setQ(String.format("'%s' in parents", fid))
+                        .setFields("*").execute().setNextPageToken(more)));
+                fileList.addAll(list.getFiles());
+                more = list.getNextPageToken();
+                if(more == null) break;
+            }
+            return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<File> getMyFiles() {
+        FileList list = null;
+        List<File> fileList = new ArrayList<>();
+        String more = null;
+        try {
+            while(true) {
+                list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000)
+                        .setFields("*").execute().setNextPageToken(more)));
+                fileList.addAll(list.getFiles());
+                more = list.getNextPageToken();
+                if(more == null) break;
+            }
+            return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        }
+        return null;
+    }
+
+    /*public List<File> listFolder(String fid) {
+
+    }*/
+
     public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
-        //g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
+        List<File> v = g.getMyFiles();
+        g.printFiles(v);
+        System.out.println();
+        g.printFiles(g.getFilesInFolder(g.findRoot()));
+        // System.out.println(g.getMyFiles());
+        // g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
 //        g.delete("B"); // primer za folder unutar folder-a npr. A/B
 //        g.delete("1"); // primer za file
 
-        g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
+        //g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
 //        g.rename("1.pdf","SK-prvi projekat2022.pdf");
+    }
+
+    private void printFiles(List<File> list) {
+        for(File f : list) {
+            System.out.printf("%s %s %s%n", f.getName(), f.getId(), f.getParents());
+        }
     }
 
     @Override
