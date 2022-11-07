@@ -6,7 +6,6 @@ import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -18,20 +17,22 @@ import com.google.api.services.drive.model.FileList;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import exceptions.InvalidConstraintException;
 import storage.*;
 
 public class GoogleDriveImplementation extends Storage{
-    private static final String APPLICATION_NAME = "Google Drive Implementation";
-    private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
-    private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-    private static Drive driveService;
-    private static HttpTransport HTTP_TRANSPORT;
+    private  String APPLICATION_NAME = "Google Drive Implementation";
+    private  final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private  final String TOKENS_DIRECTORY_PATH = "tokens";
+    private  final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
+    private  final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    private  Drive driveService;
+    private  HttpTransport HTTP_TRANSPORT;
+    private  String root;
 
-    static {
+    public GoogleDriveImplementation() {
         try {
             HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             Credential credential = authorize();
@@ -44,7 +45,7 @@ public class GoogleDriveImplementation extends Storage{
         }
     }
 
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
+    private  Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
         InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
         if (in == null) {
@@ -65,7 +66,7 @@ public class GoogleDriveImplementation extends Storage{
         return credential;
     }
 
-    public static Credential authorize() throws IOException {
+    public Credential authorize() throws IOException {
         // Load client secrets.
         InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
