@@ -23,30 +23,27 @@ import exceptions.InvalidConstraintException;
 import storage.*;
 
 public class GoogleDriveImplementation extends Storage{
-    /**
-     * Application name.
-     */
     private static final String APPLICATION_NAME = "Google Drive Implementation";
-    /**
-     * Global instance of the JSON factory.
-     */
     private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    /**
-     * Directory to store authorization tokens for this application.
-     */
     private static final String TOKENS_DIRECTORY_PATH = "tokens";
-    /**
-     * Global instance of the scopes required by this quickstart.
-     * If modifying these scopes, delete your previously saved tokens/ folder.
-     */
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-    /** Creates an authorized Credential object.
-     *
-     * @param HTTP_TRANSPORT The network HTTP Transport.
-     * @return An authorized Credential object.
-     * @throws IOException If the credentials.json file cannot be found.
-     */
+    private static Drive driveService;
+    private static HttpTransport HTTP_TRANSPORT;
+
+    static {
+        try {
+            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+            Credential credential = authorize();
+            driveService = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            System.exit(1);
+        }
+    }
+
     private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
         InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
@@ -68,42 +65,6 @@ public class GoogleDriveImplementation extends Storage{
         return credential;
     }
 
-//    public static void main(String... args) throws IOException, GeneralSecurityException {
-//        // Build a new authorized API client service.
-//        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-//        Drive service = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-//                .setApplicationName(APPLICATION_NAME)
-//                .build();
-//
-//        // Print the names and IDs for up to 10 files.
-//        FileList result = service.files().list()
-//                .setPageSize(10)
-//                .setFields("nextPageToken, files(id, name)")
-//                .execute();
-//        List<File> files = result.getFiles();
-//        if (files == null || files.isEmpty()) {
-//            System.out.println("No files found.");
-//        } else {
-//            System.out.println("Files:");
-//            for (File file : files) {
-//                System.out.printf("%s (%s)\n", file.getName(), file.getId());
-//            }
-//        }
-//        GoogleDriveImplementation g = new GoogleDriveImplementation();
-//        g.initialiseDirectory("SK", "C:\\Users\\Lav\\Desktop\\Adasdasd", 2048, 5,  "exe");
-//
-//    }
-
-    private static HttpTransport HTTP_TRANSPORT;
-    static {
-        try {
-            HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-        } catch (Throwable t) {
-            t.printStackTrace();
-            System.exit(1);
-        }
-    }
-
     public static Credential authorize() throws IOException {
         // Load client secrets.
         InputStream in = GoogleDriveImplementation.class.getResourceAsStream("/client_secret.json");
@@ -116,16 +77,9 @@ public class GoogleDriveImplementation extends Storage{
         return credential;
     }
 
-    public static Drive getDriveService() throws IOException {
-        Credential credential = authorize();
-        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-    }
-
     public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
-//        g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
+        //g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
 //        g.delete("B"); // primer za folder unutar folder-a npr. A/B
 //        g.delete("1"); // primer za file
 
@@ -153,7 +107,7 @@ public class GoogleDriveImplementation extends Storage{
         }
 
         try {
-            file =  GoogleDriveImplementation.getDriveService().files().create(file)
+            file =  driveService.files().create(file)
                     .setFields("id,parents")
                     .execute()
                     .setQuotaBytesUsed(Long.parseLong(storageConstraint.getByteSizeQuota() + ""));
@@ -196,7 +150,7 @@ public class GoogleDriveImplementation extends Storage{
     public String findIDbyFileName(String fileName){
         String fileID = null;
         try {
-            FileList result = getDriveService().files().list()
+            FileList result = driveService.files().list()
                     .setFields("files(id, name)")
                     .execute();
 
@@ -206,7 +160,7 @@ public class GoogleDriveImplementation extends Storage{
             else
                 for (File file : files)
                     if(file.getName().equals(fileName)) {
-                        fileID = file.getId();
+                        return file.getId();
                     }
             System.out.println("Folder doesn't exist 1.");
         } catch (IOException e) {
@@ -220,7 +174,7 @@ public class GoogleDriveImplementation extends Storage{
     public void delete(String name) {
         String fileId = findIDbyFileName(name);
         try {
-            getDriveService().files().delete(fileId).execute();
+            driveService.files().delete(fileId).execute();
             System.out.println("Folder deleted.");
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -254,25 +208,22 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void rename(String newName, String oldName) {
-//        String fileId = findIDbyFileName(oldName);
-//        try {
-//            File file = getDriveService().files().get(fileId).execute();
-//
-//            file.setName(newName);
-//            file.setDescription(file.getDescription());
-//            file.setMimeType(file.getMimeType());
-//
-//            java.io.File fileContent = new java.io.File(newName);
-//            FileContent mediaContent = new FileContent(file.getMimeType(), fileContent);
-//
-//            File updatedFile = getDriveService().files().update(fileId, file, mediaContent).execute();
-//            System.out.println("Renamed.");
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        String fileId = findIDbyFileName(oldName);
+        try {
+            File file = driveService.files().get(fileId).execute();
 
+            file.setName(newName);
+            File f = new File();
+            f.setProperties(file.getProperties());
+            f.setName(newName);
+
+            File updatedFile = driveService.files().update(fileId, f).execute();
+
+            System.out.println("New file name : " + updatedFile.getName());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
-
     @Override
     public long getStorageByteSize() {
         return 0;
