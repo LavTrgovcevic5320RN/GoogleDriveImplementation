@@ -77,14 +77,37 @@ public class GoogleDriveImplementation extends Storage{
         return credential;
     }
 
+    public String findIDbyFileName(String fileName){
+        String fileID = null;
+        try {
+            FileList result = driveService.files().list()
+                    .setFields("files(id, name)")
+                    .execute();
+
+            List<File> files = result.getFiles();
+            if (files == null || files.isEmpty())
+                System.out.println("No files found.");
+            else
+                for (File file : files)
+                    if(file.getName().equals(fileName)) {
+                        return file.getId();
+                    }
+            System.out.println("Folder doesn't exist 1.");
+        } catch (IOException e) {
+            System.out.println("Folder doesn't exist 2.");
+        }
+
+        return fileID;
+    }
+
     public static void main(String[] args) throws IOException {
         GoogleDriveImplementation g = new GoogleDriveImplementation();
         //g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
 //        g.delete("B"); // primer za folder unutar folder-a npr. A/B
 //        g.delete("1"); // primer za file
 
-        //g.download("C:/Users/Lav/Desktop/Adasdasd", "SK-prvi projekat2022.pdf");
-        g.rename("1.pdf","SK-prvi projekat2022.pdf");
+        g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
+//        g.rename("1.pdf","SK-prvi projekat2022.pdf");
     }
 
     @Override
@@ -147,29 +170,6 @@ public class GoogleDriveImplementation extends Storage{
 
     }
 
-    public String findIDbyFileName(String fileName){
-        String fileID = null;
-        try {
-            FileList result = driveService.files().list()
-                    .setFields("files(id, name)")
-                    .execute();
-
-            List<File> files = result.getFiles();
-            if (files == null || files.isEmpty())
-                System.out.println("No files found.");
-            else
-                for (File file : files)
-                    if(file.getName().equals(fileName)) {
-                        return file.getId();
-                    }
-            System.out.println("Folder doesn't exist 1.");
-        } catch (IOException e) {
-            System.out.println("Folder doesn't exist 2.");
-        }
-
-        return fileID;
-    }
-
     @Override
     public void delete(String name) {
         String fileId = findIDbyFileName(name);
@@ -188,22 +188,19 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void download(String destination, String... files) {
-//        OutputStream outputStream = new ByteArrayOutputStream();
-//        for(String fileName : files){
-//            try {
-//                String fileId = findIDbyFileName(fileName);
-//                GoogleDriveImplementation.getDriveService().files().get(fileId).executeMediaAndDownloadTo(outputStream);
-//                java.io.File f = new java.io.File(destination + "/" + fileName);
-//                FileWriter fw = new FileWriter(f.getAbsolutePath());
-//                fw.write(String.valueOf(outputStream));
-//                fw.close();
-//                outputStream.close();
-//                System.out.println("File " + fileName + " successfully downloaded");
-//            } catch (IOException e) {
-//                System.out.println("File " + fileName + " didnt download");
-//                e.printStackTrace();
-//            }
-//        }
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        for(String fileName : files){
+            try {
+                String fileId = findIDbyFileName(fileName);
+                driveService.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+                outputStream.writeTo(new FileOutputStream(new java.io.File(destination + "/" + fileName)));
+                outputStream.close();
+                System.out.println("File " + fileName + " successfully downloaded");
+            } catch (IOException e) {
+                System.out.println("File " + fileName + " didnt download");
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
@@ -223,15 +220,6 @@ public class GoogleDriveImplementation extends Storage{
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-    @Override
-    public long getStorageByteSize() {
-        return 0;
-    }
-
-    @Override
-    public void setSizeQuota(long l) {
-
     }
 
     @Override
@@ -287,6 +275,16 @@ public class GoogleDriveImplementation extends Storage{
     @Override
     public Collection<FileMetaData> searchByDirectoryDateRange(Date date, Date date1, DateType dateType, String s) {
         return null;
+    }
+
+    @Override
+    public long getStorageByteSize() {
+        return 0;
+    }
+
+    @Override
+    public void setSizeQuota(long l) {
+
     }
 
 }
