@@ -170,10 +170,42 @@ public class GoogleDriveImplementation extends Storage{
         g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/3.jpg");
     }
 
+    public void printTree(FileNode root, int ident) {
+        String identStr = " ".repeat(ident);
+        System.out.printf("%s%s %s\n", root.getID(), identStr, (root instanceof FileNodeComposite ? ">" : "") + root.metaData.getName());
+        if(root instanceof FileNodeComposite) {
+            for(FileNode f : ((FileNodeComposite) root).children) printTree(f, ident+2);
+        }
+    }
+
     private void printFiles(List<File> list) {
         for(File f : list) {
             System.out.printf("%s %s %s%n", f.getName(), f.getId(), f.getParents());
         }
+    }
+
+    private FileNodeComposite createTree() {
+        HashMap<String, FileNode> nodes = new HashMap<>();
+        var list = getMyFiles();
+        printFiles(list);
+        System.out.println();
+        list.forEach(file -> {
+            if(file.getMimeType().equals("application/vnd.google-apps.folder")) nodes.put(file.getId(), new FileNodeComposite(file.getId(), new FileMetaData(file.getName(), file.getId())));
+        });
+        for(FileNode f : nodes.values()) System.out.println(f);
+        System.out.println();
+        String rid = findRoot();
+        FileNodeComposite fnc = (FileNodeComposite) nodes.get(rid);
+        if(fnc == null) fnc = new FileNodeComposite(rid);
+        fnc.metaData = new FileMetaData("#", rid);
+        nodes.put(fnc.getID(), fnc);
+        list.forEach(file -> {
+            if(nodes.containsKey(file.getParents().get(0))) ((FileNodeComposite)nodes.get(file.getParents().get(0)))
+                    .add(nodes.containsKey(file.getId()) ? nodes.get(file.getId()) : new FileNode(file.getId(), new FileMetaData(file.getName(), file.getId())));
+        });
+        for(FileNode f : nodes.values()) System.out.println(f);
+        System.out.println();
+        return fnc;
     }
 
     @Override
