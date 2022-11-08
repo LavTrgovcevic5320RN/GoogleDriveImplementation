@@ -16,7 +16,9 @@ import com.google.api.services.drive.model.FileList;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import exceptions.InvalidConstraintException;
 import storage.*;
@@ -30,6 +32,9 @@ public class GoogleDriveImplementation extends Storage{
     private  Drive driveService;
     private  HttpTransport HTTP_TRANSPORT;
     private  String root;
+
+    //Potrebni fields iz fajla
+    private static final String getFields = "files(id,name,mimeType,trashed,parents,modifiedTime,createdTime,ownedByMe,size)";
 
     public GoogleDriveImplementation() {
         try {
@@ -110,15 +115,19 @@ public class GoogleDriveImplementation extends Storage{
         try {
             do {
                 list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000).setQ(String.format("'%s' in parents", fid))
-                        .setFields("*").execute().setNextPageToken(more)));
+                        .setFields(getFields).execute().setNextPageToken(more)));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
             } while (more != null);
-            return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
+            return defaultFilter(fileList).collect(Collectors.toList());
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
         return null;
+    }
+
+    private Stream<File> defaultFilter(Collection<File> toFilter) {
+        return toFilter.stream().filter(File::getOwnedByMe).filter(Predicate.not(File::getTrashed)).sorted(Comparator.comparing(File::getName));
     }
 
     public List<File> getMyFiles() {
@@ -128,11 +137,11 @@ public class GoogleDriveImplementation extends Storage{
         try {
             do {
                 list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000)
-                        .setFields("*").execute().setNextPageToken(more)));
+                        .setFields(getFields).execute().setNextPageToken(more)));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
             } while (more != null);
-            return fileList.stream().filter(File::getOwnedByMe).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
+            return defaultFilter(fileList).collect(Collectors.toList());
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
@@ -260,7 +269,7 @@ public class GoogleDriveImplementation extends Storage{
             try {
                 String fileId = findIDbyFileName(fileName);
                 driveService.files().get(fileId).executeMediaAndDownloadTo(outputStream);
-                outputStream.writeTo(new FileOutputStream(new java.io.File(destination + "/" + fileName)));
+                outputStream.writeTo(new FileOutputStream(destination + "/" + fileName));
                 outputStream.close();
                 System.out.println("File " + fileName + " successfully downloaded");
             } catch (IOException e) {
