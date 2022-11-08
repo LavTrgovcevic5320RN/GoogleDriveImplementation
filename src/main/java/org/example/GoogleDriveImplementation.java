@@ -18,28 +18,27 @@ import java.io.*;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import exceptions.InvalidConstraintException;
 import storage.*;
 
 public class GoogleDriveImplementation extends Storage{
-    private  String APPLICATION_NAME = "Google Drive Implementation";
-    private  final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
-    private  final String TOKENS_DIRECTORY_PATH = "tokens";
-    private  final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
-    private  final String CREDENTIALS_FILE_PATH = "/credentials.json";
-    private  Drive driveService;
-    private  HttpTransport HTTP_TRANSPORT;
-    private  String root;
+    private final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+    private final String TOKENS_DIRECTORY_PATH = "tokens";
+    private final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
+    private final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    private Drive driveService;
+    private HttpTransport HTTP_TRANSPORT;
+    private String root;
 
     //Potrebni fields iz fajla
-    private static final String getFields = "files(id,name,mimeType,trashed,parents,modifiedTime,createdTime,ownedByMe,size)";
+    private static final String getFields = "files(id,name,mimeType,trashed,parents,modifiedTime,createdTime,viewedByMeTime,ownedByMe,size),nextPageToken";
 
     public GoogleDriveImplementation() {
         try {
             HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             Credential credential = authorize();
+            String APPLICATION_NAME = "Google Drive Implementation";
             driveService = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
                     .setApplicationName(APPLICATION_NAME)
                     .build();
@@ -80,7 +79,7 @@ public class GoogleDriveImplementation extends Storage{
             System.out.println("Folder doesn't exist 2.");
         }
 
-        return fileID;
+        return null;
     }
 
     public String findRoot() {
@@ -115,19 +114,19 @@ public class GoogleDriveImplementation extends Storage{
         try {
             do {
                 list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000).setQ(String.format("'%s' in parents", fid))
-                        .setFields(getFields).execute().setNextPageToken(more)));
+                        .setFields(getFields).setPageToken(more).execute()));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
             } while (more != null);
-            return defaultFilter(fileList).collect(Collectors.toList());
+            return defaultFilter(fileList);
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
         return null;
     }
 
-    private Stream<File> defaultFilter(Collection<File> toFilter) {
-        return toFilter.stream().filter(File::getOwnedByMe).filter(Predicate.not(File::getTrashed)).sorted(Comparator.comparing(File::getName));
+    private List<File> defaultFilter(Collection<File> toFilter) {
+        return toFilter.stream().filter(File::getOwnedByMe).filter(Predicate.not(File::getTrashed)).sorted(Comparator.comparing(File::getName)).collect(Collectors.toList());
     }
 
     public List<File> getMyFiles() {
@@ -136,12 +135,12 @@ public class GoogleDriveImplementation extends Storage{
         String more = null;
         try {
             do {
-                list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000)
-                        .setFields(getFields).execute().setNextPageToken(more)));
+                list = ((driveService.files().list().setSpaces("drive").setCorpora("user").set("includeItemsFromAllDrives", false).setPageSize(1000).setPageToken(more)
+                        .setFields(getFields).execute()));
                 fileList.addAll(list.getFiles());
                 more = list.getNextPageToken();
             } while (more != null);
-            return defaultFilter(fileList).collect(Collectors.toList());
+            return defaultFilter(fileList);
         } catch (IOException ioException) {
             ioException.printStackTrace();
         }
@@ -170,9 +169,12 @@ public class GoogleDriveImplementation extends Storage{
         g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/3.jpg");
     }
 
+    private static final int MIN_IDENT_LEN = 100;
     public void printTree(FileNode root, int ident) {
         String identStr = " ".repeat(ident);
-        System.out.printf("%s%s %s\n", root.getID(), identStr, (root instanceof FileNodeComposite ? ">" : "") + root.metaData.getName());
+        int innerSpacing = MIN_IDENT_LEN - (identStr.length() + root.metaData.getName().length() + (root instanceof FileNodeComposite ? 1 : 0) + root.getID().length());
+        if(innerSpacing <= 0) innerSpacing = 1;
+        System.out.printf("%s%s%s%s\n", identStr, root.metaData.getName() + (root instanceof FileNodeComposite ? "/" : ""),  " ".repeat(innerSpacing), root.getID());
         if(root instanceof FileNodeComposite) {
             for(FileNode f : ((FileNodeComposite) root).children) printTree(f, ident+2);
         }
@@ -186,14 +188,10 @@ public class GoogleDriveImplementation extends Storage{
 
     private FileNodeComposite createTree() {
         HashMap<String, FileNode> nodes = new HashMap<>();
-        var list = getMyFiles();
-        printFiles(list);
-        System.out.println();
+        List<File> list = getMyFiles();
         list.forEach(file -> {
-            if(file.getMimeType().equals("application/vnd.google-apps.folder")) nodes.put(file.getId(), new FileNodeComposite(file.getId(), new FileMetaData(file.getName(), file.getId())));
+            if(file.getMimeType().equals("application/vnd.google-apps.folder")) nodes.put(file.getId(), new FileNodeComposite(file.getId(), readFileMetadata(file)));
         });
-        for(FileNode f : nodes.values()) System.out.println(f);
-        System.out.println();
         String rid = findRoot();
         FileNodeComposite fnc = (FileNodeComposite) nodes.get(rid);
         if(fnc == null) fnc = new FileNodeComposite(rid);
@@ -201,11 +199,16 @@ public class GoogleDriveImplementation extends Storage{
         nodes.put(fnc.getID(), fnc);
         list.forEach(file -> {
             if(nodes.containsKey(file.getParents().get(0))) ((FileNodeComposite)nodes.get(file.getParents().get(0)))
-                    .add(nodes.containsKey(file.getId()) ? nodes.get(file.getId()) : new FileNode(file.getId(), new FileMetaData(file.getName(), file.getId())));
+                    .add(nodes.containsKey(file.getId()) ? nodes.get(file.getId()) : new FileNode(file.getId(), readFileMetadata(file)));
         });
-        for(FileNode f : nodes.values()) System.out.println(f);
-        System.out.println();
         return fnc;
+    }
+
+    private FileMetaData readFileMetadata(File f) {
+        return new FileMetaData(f.getName(), f.getId(), f.getModifiedTime() == null ? null : new Date(f.getModifiedTime().getValue()),
+                f.getViewedByMeTime() == null ? null :new Date(f.getViewedByMeTime().getValue()),
+                f.getCreatedTime() == null ? null :new Date(f.getCreatedTime().getValue()), f.getSize() == null ? 0 : f.getSize(),
+                f.getMimeType().equals("application/vnd.google-apps.folder") ? FileMetaData.Type.DIRECTORY : FileMetaData.Type.FILE);
     }
 
     @Override
@@ -312,7 +315,7 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public void moveFiles(String s, String... strings) throws InvalidConstraintException, FileNotFoundException {
+    public void moveFiles(String s, String... strings) throws InvalidConstraintException {
 
     }
 

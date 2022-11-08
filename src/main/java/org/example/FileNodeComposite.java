@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FileNodeComposite extends FileNode{
-    List<FileNode> children = new ArrayList<>();
+    final List<FileNode> children = new ArrayList<>();
 
     public FileNodeComposite(String ID, FileMetaData metaData) {
         super(ID, metaData);
