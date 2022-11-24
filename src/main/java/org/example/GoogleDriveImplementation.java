@@ -374,17 +374,7 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public Date getCreationDate(String s) {
-        return null;
-    }
-
-    @Override
-    public Date getModificationDate(String s) {
-        return null;
-    }
-
-    @Override
-    public Collection<FileMetaData> searchByNameSorted(String s, Boolean aBoolean) {
+    public Collection<FileMetaData> searchByNameSorted(String s, boolean aBoolean) {
         return null;
     }
 
