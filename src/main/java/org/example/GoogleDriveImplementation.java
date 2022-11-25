@@ -302,6 +302,20 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void openDirectory(String s) {
+        download(".", s + "/directory.conf");
+        s = s.replaceAll("\\\\", "/");
+        s = s.replaceAll("/+", "/");
+        s = s.replaceAll("/*$", "");
+        relativeOffset = s;
+        driveRootNode = createTree();
+        rootNode = (FileNodeComposite) getNode(absolutePathToID(s));
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(new java.io.File("directory.conf"))))  {
+            storageConstraint = (StorageConstraint) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        System.out.println(storageConstraint);
+    }
 
     private void writeConfiguration() {
         java.io.File f = new java.io.File("directory.conf");
@@ -312,6 +326,7 @@ public class GoogleDriveImplementation extends Storage{
             e.printStackTrace();
         }
     }
+
 
     @Override
     public void create(String s, String s1) {
