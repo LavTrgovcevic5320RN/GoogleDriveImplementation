@@ -296,6 +296,14 @@ public class GoogleDriveImplementation extends Storage{
     @Override
     public void openDirectory(String s) {
 
+    private void writeConfiguration() {
+        java.io.File f = new java.io.File("directory.conf");
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f)))  {
+            oos.writeObject(storageConstraint);
+            uploadFiles("#/", f.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -324,13 +332,14 @@ public class GoogleDriveImplementation extends Storage{
             File fileMetadata = new File();
             java.io.File filePath = new java.io.File(file);
             fileMetadata.setName(filePath.getName());
-            fileMetadata.setMimeType("application/vnd.google-apps.unknown");
+            fileMetadata.setMimeType("application/octet-stream");
+            fileMetadata.setParents(Collections.singletonList(absolutePathToID(getAbsolutePath(destination))));
 
-            FileContent mediaContent = new FileContent("application/pdf", filePath);
+            FileContent mediaContent = new FileContent("application/octet-stream", filePath);
 
             try {
                 File realFile = driveService.files().create(fileMetadata, mediaContent)
-                        .setFields("id")
+                        .setFields("id, parents")
                         .execute();
             } catch (IOException e) {
                 throw new RuntimeException(e);
