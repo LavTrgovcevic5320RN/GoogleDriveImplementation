@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import exceptions.FileException;
 import exceptions.InvalidConstraintException;
 import storage.*;
 
@@ -218,8 +219,8 @@ public class GoogleDriveImplementation extends Storage{
         File file = new File();
         file.setName(storageName);
         file.setMimeType("application/vnd.google-apps.folder");
-
-        //napraviti check if exists metodu i proveriti ovde
+        driveRootNode = createTree();
+        if(absolutePathToID(path + "/" + storageName) != null) throw new FileException("That path already exists!");
 
         storageConstraint = new StorageConstraint();
         if (size >= 0)
@@ -238,6 +239,12 @@ public class GoogleDriveImplementation extends Storage{
                     .execute()
                     .setQuotaBytesUsed(Long.parseLong(storageConstraint.getByteSizeQuota() + ""));
             System.out.println("New Root ID: " + file.getId());
+            FileNodeComposite newNode = new FileNodeComposite(file.getId(), new FileMetaData(storageName, path + "/" + storageName));
+            ((FileNodeComposite)getNode(absolutePathToID(path))).add(newNode);
+            rootNode = newNode;
+            relativeOffset = path +"/" + storageName;
+            writeConfiguration();
+//            printTree(driveRootNode, 0);
         }catch (IOException e) {
             e.printStackTrace();
         }
@@ -349,7 +356,8 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void delete(String name) {
-        String fileId = findIDbyFileName(name);
+        String clearedName = getAbsolutePath(name);
+        String fileId = absolutePathToID(clearedName);
         try {
             driveService.files().delete(fileId).execute();
             System.out.println("Folder deleted.");
@@ -361,15 +369,17 @@ public class GoogleDriveImplementation extends Storage{
     @Override
     public void download(String destination, String... files) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        for(String fileName : files){
+        for(String path : files){
             try {
-                String fileId = findIDbyFileName(fileName);
+                String fileName = path.substring(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))+1);
+                String clearedName = getAbsolutePath(path);
+                String fileId = absolutePathToID(clearedName);
                 driveService.files().get(fileId).executeMediaAndDownloadTo(outputStream);
                 outputStream.writeTo(new FileOutputStream(destination + "/" + fileName));
                 outputStream.close();
-                System.out.println("File " + fileName + " successfully downloaded");
+                System.out.println("File " + path + " successfully downloaded");
             } catch (IOException e) {
-                System.out.println("File " + fileName + " didnt download");
+                System.out.println("File " + path + " didnt download");
                 e.printStackTrace();
             }
         }
@@ -382,7 +392,8 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void rename(String newName, String oldName) {
-        String fileId = findIDbyFileName(oldName);
+        String clearedName = getAbsolutePath(oldName);
+        String fileId = absolutePathToID(clearedName);
         try {
             File file = driveService.files().get(fileId).execute();
 
