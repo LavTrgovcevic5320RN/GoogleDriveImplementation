@@ -29,7 +29,9 @@ public class GoogleDriveImplementation extends Storage{
     private final String CREDENTIALS_FILE_PATH = "/credentials.json";
     private Drive driveService;
     private HttpTransport HTTP_TRANSPORT;
-    private String root;
+    private FileNodeComposite driveRootNode;
+    private FileNodeComposite rootNode;
+    private String relativeOffset = "";
 
     //Potrebni fields iz fajla
     private static final String getFields = "files(id,name,mimeType,trashed,parents,modifiedTime,createdTime,viewedByMeTime,ownedByMe,size),nextPageToken";
@@ -239,6 +241,56 @@ public class GoogleDriveImplementation extends Storage{
         }catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private FileNode getNode(String id) {
+        return getNodeRec(id, driveRootNode);
+    }
+
+    private FileNode getNodeRec(String target, FileNodeComposite currentDir) {
+        if(target.equals(currentDir.getID())) return currentDir;
+        for(FileNode f : currentDir.getChildren()) {
+            if(f.getID().equals(target)){
+                return f;
+            }
+            else if(f instanceof FileNodeComposite) {
+                FileNode r = getNodeRec(target, (FileNodeComposite) f);
+                if(r != null) return r;
+            }
+        }
+        return null;
+    }
+
+    private String absolutePathToID(String path) {
+        if(driveRootNode == null) driveRootNode = createTree();
+        FileNode currentNode = driveRootNode;
+        path = path.replaceAll("[/\\\\]+", "/");
+        path = path.replaceAll("(?<!^)/*$", "");
+        if(path.startsWith("/")) {
+            String[] split = path.split("/");
+            int level = 1;
+            if(split.length == 0) return driveRootNode.getID();
+            while(level != split.length) {
+                if(!(currentNode instanceof FileNodeComposite)) return null;
+                else {
+                    for (FileNode n : ((FileNodeComposite) currentNode).getChildren()) {
+                        if(n.metaData.getName().equals(split[level])) {
+                            currentNode = n;
+                            if(level + 1 == split.length) return currentNode.getID();
+                            break;
+                        }
+                    }
+                    level++;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getAbsolutePath(String relativePath) {
+        relativePath = relativePath.replaceAll("\\\\", "/");
+        relativePath = relativePath.replaceAll("/*$", "");
+        return relativePath.replaceAll("#/*", relativeOffset + "/").replaceAll("/+", "/");
     }
 
     @Override
