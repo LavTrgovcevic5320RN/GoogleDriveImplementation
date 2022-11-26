@@ -427,7 +427,7 @@ public class GoogleDriveImplementation extends Storage{
                     throw new RuntimeException(e);
                 }
             }
-            else System.err.println("Directory exists!");
+            else System.err.println("Directory exists! " + path + "/" + directoryName);
             storageConstraint.getMaxNumberOfFiles().put(path +  directoryName, i);
             if(!bulkMode) writeConfiguration();
         } else throw new InvalidConstraintException("Directory full");
@@ -527,7 +527,25 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public Collection<String> searchFile(String s) {
-        return null;
+        Collection<FileMetaData> allFiles = searchFilesInDirectoryAndBelow("#");
+        Collection<FileMetaData> matching = allFiles.stream().filter(fileMetaData -> fileMetaData.getName().equalsIgnoreCase(s)).collect(Collectors.toList());
+        Collection<String> ids = new HashSet<>();
+        for (FileMetaData f : matching) ids.add(f.getFullPath());
+        Collection<String> paths = new ArrayList<>();
+        for (String id : ids) paths.add(getPath(getNode(id)));
+        return paths;
+    }
+
+    private String getPath(FileNode f) {
+        StringBuilder ret = new StringBuilder();
+        while (!f.equals(rootNode)) {
+            ret.insert(0, f.metaData.getName() + "/");
+            f = f.getParent();
+            if(f == null) break;
+        }
+        ret.insert(0, "#/");
+        ret.deleteCharAt(ret.length()-1);
+        return ret.toString();
     }
 
     @Override
