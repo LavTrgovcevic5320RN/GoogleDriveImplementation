@@ -319,6 +319,8 @@ public class GoogleDriveImplementation extends Storage{
 
     private void writeConfiguration() {
         java.io.File f = new java.io.File("directory.conf");
+        FileNode conf = getNode(localPathToID("#/directory.conf"));
+        if(conf != null) delete("#/directory.conf");
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f)))  {
             oos.writeObject(storageConstraint);
             uploadFiles("#/", f.getAbsolutePath());
@@ -482,11 +484,6 @@ public class GoogleDriveImplementation extends Storage{
             ((FileNodeComposite) folder).children.forEach(fileNode -> ret.add(fileNode.metaData));
         }
         return ret;
-    }
-
-    @Override
-    public Collection<FileMetaData> searchFilesInAllDirectories(String s) {
-        return null;
     }
 
     private Collection<FileMetaData> searchRecursive(FileNode node) {
