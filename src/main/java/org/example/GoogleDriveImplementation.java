@@ -427,7 +427,12 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public Collection<FileMetaData> searchFilesInDirectory(String s) {
-        return null;
+        Collection<FileMetaData> ret = new ArrayList<>();
+        FileNode folder = getNode(localPathToID(s));
+        if(folder instanceof FileNodeComposite) {
+            ((FileNodeComposite) folder).children.forEach(fileNode -> ret.add(fileNode.metaData));
+        }
+        return ret;
     }
 
     @Override
@@ -435,24 +440,42 @@ public class GoogleDriveImplementation extends Storage{
         return null;
     }
 
+    private Collection<FileMetaData> searchRecursive(FileNode node) {
+        Collection<FileMetaData> ret = new ArrayList<>();
+        if(node instanceof FileNodeComposite) {
+            ((FileNodeComposite) node).children.forEach(fileNode -> ret.addAll(searchRecursive(fileNode)));
+        }
+        ret.add(node.metaData);
+        return ret;
+    }
+
     @Override
     public Collection<FileMetaData> searchFilesInDirectoryAndBelow(String s) {
-        return null;
+        return searchRecursive(getNode(localPathToID(s)));
     }
 
     @Override
-    public Collection<FileMetaData> searchFilesWithExtension(String s, String s1) {
-        return null;
+    public Collection<FileMetaData> searchFilesWithExtension(String path, String extension) {
+        extension = extension.trim();
+        extension = extension.toLowerCase();
+        if(!extension.matches("\\.?[\\w\\d.]+")) throw new RuntimeException(String.format("Extension \"%s\" is not valid", extension));
+        Collection<FileMetaData> allFiles = searchFilesInDirectoryAndBelow(path);
+        final String finalExtension = extension;
+        return allFiles.stream().filter(fileMetaData -> fileMetaData.getName().toLowerCase().endsWith(finalExtension)).collect(Collectors.toList());
     }
 
     @Override
-    public Collection<FileMetaData> searchFilesThatContain(String s, String s1) {
-        return null;
+    public Collection<FileMetaData> searchFilesThatContain(String path, String substring) {
+        Collection<FileMetaData> allFiles = searchFilesInDirectoryAndBelow(path);
+        final String finalSubstring = substring.toLowerCase();
+        return allFiles.stream().filter(fileMetaData -> fileMetaData.getName().toLowerCase().contains(finalSubstring)).collect(Collectors.toList());
     }
 
-    @Override
     public boolean searchIfFilesExist(String s, String... strings) {
-        return false;
+        Collection<FileMetaData> allFiles = searchFilesInDirectory(s);
+        Collection<String> names = new HashSet<>();
+        for(FileMetaData f : allFiles) names.add(f.getName());
+        return names.containsAll(Arrays.asList(strings));
     }
 
     @Override
@@ -461,13 +484,17 @@ public class GoogleDriveImplementation extends Storage{
     }
 
     @Override
-    public Collection<FileMetaData> searchByNameSorted(String s, boolean aBoolean) {
-        return null;
+    public Collection<FileMetaData> searchByNameSorted(String path, boolean ascending) {
+        Collection<FileMetaData> allFiles = searchFilesInDirectory(path);
+        Sorter s = new Sorter(ascending);
+        return s.applySorter(allFiles);
     }
 
     @Override
-    public Collection<FileMetaData> searchByDirectoryDateRange(Date date, Date date1, DateType dateType, String s) {
-        return null;
+    public Collection<FileMetaData> searchByDirectoryDateRange(Date startDate, Date endDate, DateType sortDateType, String path) {
+        Collection<FileMetaData> allFiles = searchFilesInDirectory(path);
+        Filter f = new Filter(startDate, endDate, sortDateType);
+        return f.applyFilter(allFiles);
     }
 
     @Override
@@ -478,6 +505,10 @@ public class GoogleDriveImplementation extends Storage{
     @Override
     public void setSizeQuota(long l) {
 
+    }
+
+    private String localPathToID(String path) {
+        return absolutePathToID(getAbsolutePath(path));
     }
 
 }
