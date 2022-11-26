@@ -4,10 +4,10 @@ import storage.FileMetaData;
 
 public class FileNode {
     private final String ID;
-    private String parent;
+    private FileNodeComposite parent;
     FileMetaData metaData;
 
-    protected void setParent(String parent) {
+    protected void setParent(FileNodeComposite parent) {
         this.parent = parent;
     }
 
@@ -24,7 +24,7 @@ public class FileNode {
         return ID;
     }
 
-    public String getParent() {
+    public FileNodeComposite getParent() {
         return parent;
     }
 

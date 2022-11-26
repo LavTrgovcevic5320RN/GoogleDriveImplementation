@@ -319,9 +319,12 @@ public class GoogleDriveImplementation extends Storage{
 
     private void writeConfiguration() {
         java.io.File f = new java.io.File("directory.conf");
+        FileNode conf = getNode(localPathToID("#/directory.conf"));
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f)))  {
             oos.writeObject(storageConstraint);
-            uploadFiles("#/", f.getAbsolutePath());
+            File fileMetadata = new File();
+            fileMetadata.setParents(Collections.singletonList(absolutePathToID(getAbsolutePath("#/"))));
+            driveService.files().update(conf.getID(), fileMetadata);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -424,7 +427,7 @@ public class GoogleDriveImplementation extends Storage{
                     throw new RuntimeException(e);
                 }
             }
-            else System.err.println("Directory exists!");
+            else System.err.println("Directory exists! " + path + "/" + directoryName);
             storageConstraint.getMaxNumberOfFiles().put(path +  directoryName, i);
             if(!bulkMode) writeConfiguration();
         } else throw new InvalidConstraintException("Directory full");
@@ -451,7 +454,18 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void moveFiles(String s, String... strings) throws InvalidConstraintException {
-
+        if(!checkIfAdditionValid(s, strings.length)) throw new InvalidConstraintException("Too many files!");
+        FileNodeComposite dest = (FileNodeComposite) getNode(localPathToID(s));
+        for(String f : strings) {
+            try{
+                FileNode file = getNode(localPathToID(f));
+                File fileMetadata = new File();
+                fileMetadata.setParents(Collections.singletonList(absolutePathToID(getAbsolutePath(dest.getID()))));
+                driveService.files().update(file.getID(), fileMetadata);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
@@ -524,7 +538,25 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public Collection<String> searchFile(String s) {
-        return null;
+        Collection<FileMetaData> allFiles = searchFilesInDirectoryAndBelow("#");
+        Collection<FileMetaData> matching = allFiles.stream().filter(fileMetaData -> fileMetaData.getName().equalsIgnoreCase(s)).collect(Collectors.toList());
+        Collection<String> ids = new HashSet<>();
+        for (FileMetaData f : matching) ids.add(f.getFullPath());
+        Collection<String> paths = new ArrayList<>();
+        for (String id : ids) paths.add(getPath(getNode(id)));
+        return paths;
+    }
+
+    private String getPath(FileNode f) {
+        StringBuilder ret = new StringBuilder();
+        while (!f.equals(rootNode)) {
+            ret.insert(0, f.metaData.getName() + "/");
+            f = f.getParent();
+            if(f == null) break;
+        }
+        ret.insert(0, "#/");
+        ret.deleteCharAt(ret.length()-1);
+        return ret.toString();
     }
 
     @Override
@@ -543,12 +575,25 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public long getStorageByteSize() {
-        return 0;
+        driveRootNode = createTree();
+        openDirectory(relativeOffset);
+        return calcSize(rootNode);
+    }
+
+    private long calcSize(FileNode f) {
+        long sum = 0;
+        if(f instanceof FileNodeComposite) {
+            for( FileNode fn : ((FileNodeComposite) f).getChildren()) sum += calcSize(fn);
+        }
+        sum += f.metaData.getByteSize();
+        return sum;
     }
 
     @Override
     public void setSizeQuota(long l) {
-
+        if(storageConstraint.getByteSizeQuota() <= l || getStorageByteSize() <= l) storageConstraint.setByteSizeQuota(l);
+        else throw new InvalidConstraintException("New storage constraint smaller than current size");
+        writeConfiguration();
     }
 
     private String localPathToID(String path) {

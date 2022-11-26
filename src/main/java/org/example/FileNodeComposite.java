@@ -21,7 +21,7 @@ public class FileNodeComposite extends FileNode{
     }
 
     public boolean add(FileNode fileNode) {
-        fileNode.setParent(this.getID());
+        fileNode.setParent(this);
         return children.add(fileNode);
     }
 
