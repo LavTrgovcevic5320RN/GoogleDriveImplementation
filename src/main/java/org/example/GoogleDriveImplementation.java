@@ -320,10 +320,11 @@ public class GoogleDriveImplementation extends Storage{
     private void writeConfiguration() {
         java.io.File f = new java.io.File("directory.conf");
         FileNode conf = getNode(localPathToID("#/directory.conf"));
-        if(conf != null) delete("#/directory.conf");
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f)))  {
             oos.writeObject(storageConstraint);
-            uploadFiles("#/", f.getAbsolutePath());
+            File fileMetadata = new File();
+            fileMetadata.setParents(Collections.singletonList(absolutePathToID(getAbsolutePath("#/"))));
+            driveService.files().update(conf.getID(), fileMetadata);
         } catch (IOException e) {
             e.printStackTrace();
         }
