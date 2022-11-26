@@ -327,24 +327,8 @@ public class GoogleDriveImplementation extends Storage{
         }
     }
 
-
-    @Override
-    public void create(String s, String s1) {
-
-    }
-
-    @Override
-    public void create(String s, String s1, int i) {
-
-    }
-
     @Override
     public void setMaxFiles(String s, int i) {
-
-    }
-
-    @Override
-    public void createExpanded(String s, String s1) {
 
     }
 
@@ -398,6 +382,71 @@ public class GoogleDriveImplementation extends Storage{
                 e.printStackTrace();
             }
         }
+    }
+
+    private boolean checkIfAdditionValid(String path, int add) {
+        FileNode node = getNode(localPathToID(path));
+        if (!(node instanceof FileNodeComposite)) return false;
+        int noFiles = ((FileNodeComposite) node).getChildren().size();
+        int allowedFiles;
+        path = path.replaceFirst("[/\\\\]$", "");
+        allowedFiles = storageConstraint.getMaxNumberOfFiles().get(path);
+        if(allowedFiles < 0) return true;
+        return (allowedFiles >= noFiles + add);
+    }
+
+    // returns false if extension illegal. true if legal
+    private boolean checkExtension(String file) {
+        String ext = file.substring(file.lastIndexOf(".")+1).toLowerCase();
+        return (!storageConstraint.getIllegalExtensions().contains(ext));
+    }
+
+    public void create(String directoryName, String path) {
+        create(directoryName, path, -1);
+    }
+
+    private boolean bulkMode = false;
+
+    @Override
+    public void create(String directoryName, String path, int i) {
+        if(checkIfAdditionValid(path, 1)) {
+            if(localPathToID(path + "/" + directoryName) == null || getNode(localPathToID(path + "/" + directoryName)) == null) {
+                File file = new File();
+                file.setName(directoryName);
+                file.setMimeType("application/vnd.google-apps.folder");
+                file.setParents(Collections.singletonList(localPathToID(path)));
+                try {
+                    file =  driveService.files().create(file)
+                            .setFields("id,parents")
+                            .execute();
+                    ((FileNodeComposite)getNode(localPathToID(path))).add(new FileNodeComposite(file.getId(), new FileMetaData(directoryName, path + "/" + directoryName)));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            else System.err.println("Directory exists!");
+            storageConstraint.getMaxNumberOfFiles().put(path +  directoryName, i);
+            if(!bulkMode) writeConfiguration();
+        } else throw new InvalidConstraintException("Directory full");
+    }
+
+    @Override
+    public void createExpanded(String path, String pattern) {
+        /*bulkMode = true;
+        if(checkIfAdditionValid(path, BraceExpansion.getTopLevelDirectoryCount(pattern)))
+            for(String s : BraceExpansion.expand(pattern)){
+                String full = path + s;
+                full = full.replaceAll("\\\\+", "/");
+                full = full.replaceAll("/+", "/");
+                int index = Math.max(full.lastIndexOf("/"), full.lastIndexOf("\\"));
+                String actualName = full.substring(index +1);
+                String actualPath = full.substring(0, index +1);
+                System.out.printf("actn %s actp %s\n", actualName, actualPath);
+                create(actualName, actualPath);
+            }
+        else throw new InvalidConstraintException("Too many files!");
+        writeConfiguration();
+        bulkMode = false;*/
     }
 
     @Override
