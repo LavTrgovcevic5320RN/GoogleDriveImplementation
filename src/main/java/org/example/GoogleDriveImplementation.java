@@ -454,7 +454,18 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public void moveFiles(String s, String... strings) throws InvalidConstraintException {
-
+        if(!checkIfAdditionValid(s, strings.length)) throw new InvalidConstraintException("Too many files!");
+        FileNodeComposite dest = (FileNodeComposite) getNode(localPathToID(s));
+        for(String f : strings) {
+            try{
+                FileNode file = getNode(localPathToID(f));
+                File fileMetadata = new File();
+                fileMetadata.setParents(Collections.singletonList(absolutePathToID(getAbsolutePath(dest.getID()))));
+                driveService.files().update(file.getID(), fileMetadata);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
@@ -564,12 +575,25 @@ public class GoogleDriveImplementation extends Storage{
 
     @Override
     public long getStorageByteSize() {
-        return 0;
+        driveRootNode = createTree();
+        openDirectory(relativeOffset);
+        return calcSize(rootNode);
+    }
+
+    private long calcSize(FileNode f) {
+        long sum = 0;
+        if(f instanceof FileNodeComposite) {
+            for( FileNode fn : ((FileNodeComposite) f).getChildren()) sum += calcSize(fn);
+        }
+        sum += f.metaData.getByteSize();
+        return sum;
     }
 
     @Override
     public void setSizeQuota(long l) {
-
+        if(storageConstraint.getByteSizeQuota() <= l || getStorageByteSize() <= l) storageConstraint.setByteSizeQuota(l);
+        else throw new InvalidConstraintException("New storage constraint smaller than current size");
+        writeConfiguration();
     }
 
     private String localPathToID(String path) {
