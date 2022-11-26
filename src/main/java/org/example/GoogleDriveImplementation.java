@@ -154,23 +154,23 @@ public class GoogleDriveImplementation extends Storage{
 
     }*/
 
-    public static void main(String[] args) throws IOException {
-        GoogleDriveImplementation g = new GoogleDriveImplementation();
-        List<File> v = g.getMyFiles();
-//        g.printFiles(v);
-//        System.out.println();
-//        g.printFiles(g.getFilesInFolder(g.findRoot()));
-        // System.out.println(g.getMyFiles());
-        // g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
-//        g.delete("B"); // primer za folder unutar folder-a npr. A/B
-//        g.delete("1"); // primer za file
-
-        //g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
-//        g.rename("1.pdf","SK-prvi projekat2022.pdf");
-//        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/1.txt");
-//        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/2.xlsx");
-        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/3.jpg");
-    }
+//    public static void main(String[] args) throws IOException {
+//        GoogleDriveImplementation g = new GoogleDriveImplementation();
+//        List<File> v = g.getMyFiles();
+////        g.printFiles(v);
+////        System.out.println();
+////        g.printFiles(g.getFilesInFolder(g.findRoot()));
+//        // System.out.println(g.getMyFiles());
+//        // g.initialiseDirectory("/my-drive", "marko polo", 256, 5, "exe");
+////        g.delete("B"); // primer za folder unutar folder-a npr. A/B
+////        g.delete("1"); // primer za file
+//
+//        //g.download("C:/Users/Lav/Desktop/Adasdasd", "A");
+////        g.rename("1.pdf","SK-prvi projekat2022.pdf");
+////        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/1.txt");
+////        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/2.xlsx");
+//        g.uploadFiles("Kuca", "C:/Users/Lav/Desktop/3.jpg");
+//    }
 
     private static final int MIN_IDENT_LEN = 100;
     public void printTree(FileNode root, int ident) {
@@ -482,11 +482,6 @@ public class GoogleDriveImplementation extends Storage{
             ((FileNodeComposite) folder).children.forEach(fileNode -> ret.add(fileNode.metaData));
         }
         return ret;
-    }
-
-    @Override
-    public Collection<FileMetaData> searchFilesInAllDirectories(String s) {
-        return null;
     }
 
     private Collection<FileMetaData> searchRecursive(FileNode node) {
